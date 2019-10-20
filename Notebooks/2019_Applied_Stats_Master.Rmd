@@ -19,7 +19,7 @@ Remember that is good practice to load the libraries to be used on the top of th
 ```{r}
 library(tidyverse)
 library(broom)
-library(cowplot)
+library(mlbench)
 library(gvlma)
 ```
 
@@ -522,30 +522,40 @@ aov(Y ~ grp, data = dat_aov) %>% summary(intercept = TRUE)
 
 # Linear regression: simple and multiple
 
-The following section will use most of what we've seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the `msleep` dataset. It constains sleep time, weight and taxonomic classification of multiple mamals. (See `?msleep` for information about the dataset.)
+The following section will use most of what we've seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the `PimaIndiansDiabetes2` dataset that is available in the `mlbench` package. It contains body meassurements and clinical chemestry data of 768 subjects
+
+```{r}
+data(PimaIndiansDiabetes2)
+PimaIndiansDiabetes2 %>% str
+```
+
 
 ## Exercise 1
 
-Use ggplot2 to make a scatterplot that visualizes the relationship between total sleep hours and the number of REM sleep hours of the animal.
+Use ggplot2 to make a scatterplot that visualizes the relationship between the body mass index and the diastolic blood pressure. Can you tell whether this association is positive or negative?
 ```{r}
 # ggplot
+PimaIndiansDiabetes2 %>% 
+  ggplot(aes(x = mass, y = pressure)) +
+  geom_point() +
+  geom_smooth(method = "lm")
 ```
 
 
 ## Exercise 2
 
-Run a regression model that fits the number REM sleep hours by total sleep hours of the animal, and store the model object in the variable `sleep_mod`.
+Run a regression model that fits the blood pressure and the body mass, and store the model object in the variable `pressure_mod`.
 
 ```{r}
-# lm
+pressure_mod = lm(pressure ~ mass, data = PimaIndiansDiabetes2)
 ```
 
 ## Exercise 3
 
-Is the association between body weight and sleep hours significant? What is the proportion of variance in the sleep hours explained by the animal body weight?
+Is the association between body mass and blood pressure significant? What is the proportion of variance in the blood pressure explained by the body mass index?
 
 ```{r}
-# summary here
+summary(pressure_mod)
 ```
 
 # Exercise 4
@@ -554,16 +564,21 @@ Make a histogram of the residuals of the model using ggplot2.
 
 ```{r}
 # hist
+ggplot(pressure_mod, aes(x = residuals(pressure_mod))) +
+  geom_histogram()
+
 ```
 
 ## Excercise 5
 
 Sometimes you want to include other variables in your model that might have an effect on your dependent variable. These variables can be easily included in the model to perform a multiple linear regression, which is a generalization of a simple linear regression. The variables can be either continuous or categorical. When you perform a multiple linear regeression of the form `y ~ z + x` you can say that you are evaluating the association of `x` and `y` adjusting or controlling by `z`.
 
-Fit a linear model to test the the association of total and REM hours as above, but adjusting by the (taxonomic) order. Use Summary to determine whether the association is significant.
+Fit a linear model to test the the association of blood pressure and body mass as above, but adjusting by the age of the subject. Use Summary to determine whether the association is significant.
 
 ```{r}
-
+# lm adjusting by age
+pressure_adj = lm(pressure ~ age + mass, data = PimaIndiansDiabetes2)
+summary(pressure_adj)
 ```
 
 **NOTE** that this is very similar to the so called *ANCOVA* (analysis of covariance), which evaluates whether the means of a dependent continuous variable are equal across levels of a categorical independent variable, while controlling for the effects of other continuous variables that are not of primary interest.
