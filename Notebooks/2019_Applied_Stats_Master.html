@@ -195,12 +195,12 @@ summary {
 <h1>Libraries</h1>
 <p>Remember that is good practice to load the libraries to be used on the top of the document</p>
 <pre class="r"><code>library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages ─────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
 <pre><code>## ✔ ggplot2 3.2.1     ✔ purrr   0.3.2
 ## ✔ tibble  2.1.3     ✔ dplyr   0.8.3
 ## ✔ tidyr   1.0.0     ✔ stringr 1.4.0
 ## ✔ readr   1.3.1     ✔ forcats 0.4.0</code></pre>
-<pre><code>## ── Conflicts ────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()</code></pre>
 <pre class="r"><code>library(broom)
@@ -1679,7 +1679,7 @@ dat</code></pre>
 <div id="anova" class="section level3">
 <h3>ANOVA</h3>
 <p>ANOVA is also a special, limited version of the linear model. You use ANOVA when your dependent variable is categorical and you’re interested in the difference in mean values between categories. You can think of ANOVA as a case of t-test when you have more than 2 groups.</p>
-<p>Just like with the t-test, you can perform the ANOVA using the <code>aov()</code> command and a formula. <strong>Note</strong> that there is a related but diifferent command named <code>anova()</code>, don’t confuse them!</p>
+<p>Just like with the t-test, you can perform the ANOVA using the <code>aov()</code> command and a formula. <strong>Note</strong> that there is a related but different command named <code>anova()</code>, don’t confuse them!</p>
 <pre class="r"><code>light_aov = aov(Flo ~ light_cond.e, data = dat)
 
 summary(light_aov, intercept = TRUE)</code></pre>
@@ -1948,29 +1948,35 @@ p_a  = pf(F_a,  df1 = df['a'],  df2 = df['err'], lower.tail = FALSE)</code></pre
 </div>
 </div>
 </div>
-<div id="exercises" class="section level2">
-<h2>Exercises</h2>
-<p>For the following Exercises we will use the <code>iris</code> dataset that has measurements of different parts of flowers. (See <code>?iris</code> for information about the dataset.)</p>
 </div>
-<div id="question-1" class="section level2">
-<h2>Question 1</h2>
-<p>Use ggplot2 to make a scatterplot that visualizes the relationship between sepal length (horizontal axis) and petal width (vertical axis). Watch out for overplotting.</p>
-<pre class="r"><code># Code here</code></pre>
+<div id="linear-regression-simple-and-multiple" class="section level1">
+<h1>Linear regression: simple and multiple</h1>
+<p>The following section will use most of what we’ve seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the <code>msleep</code> dataset. It constains sleep time, weight and taxonomic classification of multiple mamals. (See <code>?msleep</code> for information about the dataset.)</p>
+<div id="exercise-1" class="section level2">
+<h2>Exercise 1</h2>
+<p>Use ggplot2 to make a scatterplot that visualizes the relationship between total sleep hours and the number of REM sleep hours of the animal.</p>
+<pre class="r"><code># ggplot</code></pre>
 </div>
 <div id="exercise-2" class="section level2">
 <h2>Exercise 2</h2>
-<p>Run a regression model that predicts the petal width from the sepal length, and store the model object in the variable <code>iris_mod</code>. End the block by printing out the summary of the model.</p>
-<pre class="r"><code># Code here</code></pre>
+<p>Run a regression model that fits the number REM sleep hours by total sleep hours of the animal, and store the model object in the variable <code>sleep_mod</code>.</p>
+<pre class="r"><code># lm</code></pre>
 </div>
 <div id="exercise-3" class="section level2">
 <h2>Exercise 3</h2>
-<p>Make a histogram of the residuals of the model using ggplot2.</p>
-<pre class="r"><code># Code here</code></pre>
+<p>Is the association between body weight and sleep hours significant? What is the proportion of variance in the sleep hours explained by the animal body weight?</p>
+<pre class="r"><code># summary here</code></pre>
 </div>
-<div id="exercise-4" class="section level2">
-<h2>Exercise 4</h2>
-<p>Write code to predict the petal width for two plants, the first with a sepal length of 5.25cm, and the second with a sepal length of 6.3cm. Store the vector of predictions in the variable <code>iris_pred</code>.</p>
-<pre class="r"><code># Code here</code></pre>
+</div>
+<div id="exercise-4" class="section level1">
+<h1>Exercise 4</h1>
+<p>Make a histogram of the residuals of the model using ggplot2.</p>
+<pre class="r"><code># hist</code></pre>
+<div id="excercise-5" class="section level2">
+<h2>Excercise 5</h2>
+<p>Sometimes you want to include other variables in your model that might have an effect on your dependent variable. These variables can be easily included in the model to perform a multiple linear regression, which is a generalization of a simple linear regression. The variables can be either continuous or categorical. When you perform a multiple linear regeression of the form <code>y ~ z + x</code> you can say that you are evaluating the association of <code>x</code> and <code>y</code> adjusting or controlling by <code>z</code>.</p>
+<p>Fit a linear model to test the the association of total and REM hours as above, but adjusting by the (taxonomic) order. Use Summary to determine whether the association is significant.</p>
+<p><strong>NOTE</strong> that this is very similar to the so called <em>ANCOVA</em> (analysis of covariance), which evaluates whether the means of a dependent continuous variable are equal across levels of a categorical independent variable, while controlling for the effects of other continuous variables that are not of primary interest.</p>
 </div>
 </div>
 <div id="assumptions-of-the-linear-model" class="section level1">
