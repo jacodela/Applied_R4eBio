@@ -19,8 +19,9 @@ Remember that is good practice to load the libraries to be used on the top of th
 ```{r}
 library(tidyverse)
 library(broom)
-library(cowplot)
+library(mlbench)
 library(gvlma)
+library(gapminder)
 ```
 
 ## Set seed 
@@ -35,54 +36,54 @@ Before we start, let's go over the basic R commands and functions from the tidyv
 To print an R object, you just type its name. Likewise, you can print the top of a data frame with the command `head()`
 ```{r}
 # Print complete df
-iris
+
 
 # print top
-head(iris)
+
 ```
 
 One useful operator is the *pipe* `%>%`. It passes the content of one function or object directly to another. Think of it as saying "this *and then* that".
 ```{r}
-# For example, this:
-head(iris)
+# For example, this way of printing head:
+
 
 # Is the same as
-iris %>% head()
+
 ```
 
 
 You can select columns using multiple commands, depending on the format you want. Some of them give the same result. For example, if you want to select the `Sepal.Length` column, you can do it like this
 ```{r}
 # Indexing by position
-iris[,1]
+
 
 # Indexing by column name
-iris[,"Sepal.Length"]
+
 
 # Using the $ operator
-iris$Sepal.Length
+
 
 # using pull from tidyverse
-iris %>% pull(Sepal.Length)
+
 
 # Using select from tidyverse
 # Note that select returns a data frame instead of a vector
-iris %>% select(Sepal.Length)
+
 ```
 
 Likewise, you can filter by a condition. For example, you can select only the rows from *Iris setosa*
 ```{r}
 # Indexing rows in base R
-iris[iris$Species == "setosa",]
+
 
 # Using filter from the tidyverse
-iris %>% filter(Species == "setosa")
+
 ```
 
 You can also summarize a complete data frame using the `summary()` function
 ```{r}
 # Summary of all columns
-summary(iris)
+
 ```
 
 In addition, there are other functions that are useful to get a glimpse of your data, some of them included within the `summary` function. They include:
@@ -102,29 +103,37 @@ For this section we will use the `diamonds` dataset, which contains information 
 
 ```{r}
 # Print top of table
-diamonds %>% head()
+
 ```
 
 
 To calculate the correlation between carat weigth and price, all we use the `cor` command:
 ```{r, echo=TRUE}
-# Calculate correlation
-cor(diamonds$carat, diamonds$price, method = "pearson")
+# Calculate pearson correlation
+
 ```
 
-So what does the value of correlation coefficient (p) mean? Correlation considers the variance in variable *x*, the variance in variable *y* and their covariance (how the two vary together). Values of p always range between -1 and 1. Values near -1 indicate strong negative correlation, while values near 1 indicate strong positive correlation. When *x* and *y* are uncorrelated, their covariance (and thus p) is 0. Think of the lack of correlation as a plot of the two variables without any kind of structure, just a random cloud of points. Correlation, on the other hand, means that there is a structure to that cloud of points - maybe it's stretched on the diagonal and the could is pointing to upper right, in which case the correlation would be positive.
+So, what does the value of correlation coefficient (p) mean? Correlation considers the variance in variable *x*, the variance in variable *y* and their covariance (how the two vary together). Values of p always range between -1 and 1. Values near -1 indicate strong negative correlation, while values near 1 indicate strong positive correlation. When *x* and *y* are uncorrelated, their covariance (and thus p) is 0. Think of the lack of correlation as a plot of the two variables without any kind of structure, just a random cloud of points. Correlation, on the other hand, means that there is a structure to that cloud of points - maybe it's stretched on the diagonal and the could is pointing to upper right, in which case the correlation would be positive.
 
 The associated p-value of a correlation can be calculated as follows:
 
 ```{r, echo=TRUE}
-cor.test(diamonds$carat, diamonds$price, method = "pearson")
+# correlation test using Pearson method
+
 ```
 
 Note that the Pearson's correlation test assumes that *x* and *y* are normally distributed. There's also the non-parametric Spearman's rank correlation (in case of non-normality).
 
 ```{r, echo=TRUE}
-cor.test(diamonds$carat, diamonds$price, method='spearman')
+# correlation test using Spearman method
+
 ```
+
+Frecuently you will get the message:
+
+> Cannot compute exact p-value with ties
+
+This is because Spearman's method uses ranked values to calculate the correlation, and when you have repeated values (i.e. ties), it can only calculate an approximate p-value. This should't be a problem.
 
 If you want to test your ability to visually assess the correlation between two variables, try [this game](http://guessthecorrelation.com/), just don't get too distracted ;)
 
@@ -217,6 +226,7 @@ conditions = c("Low" = -0.5, "High" = 0.5)
 Then simulate the data by creating a data table with a row for each trial and columns for the trial type and the error term (random numbers samples from a normal distribution with the SD specified by `error_sd`). For categorical variables, include both a column with the text labels (`light_cond`) and another column with the coded version (`light_cond.e`) to make it easier to check what the codings mean and to use for graphing. Calculate the dependent variable (`Flo`) as the sum of the grand mean (`mu`), the coefficient (`effect`) multiplied by the effect-coded predictor variable (`light_cond.e`), and the error term.
 
 ```{r}
+# Create a single data frame with all the simulated data that we will use below
 dat = data.frame(light_cond = rep(names(conditions), each = n_per_grp),
   light_cond.e = rep(conditions, each = n_per_grp),
   error = rnorm(2*n_per_grp, 0, error_sd)) %>%
@@ -227,7 +237,8 @@ dat
 
 Last but not least, always plot simulated data to make sure it looks like you expect.
 
-```{r plot-sim}
+```{r}
+# Violin plot to see the distribution of simulated data per group
 ggplot(dat, aes(light_cond, Flo)) + 
   geom_violin() +
   geom_boxplot(aes(fill = light_cond), width = 0.25, show.legend = FALSE) +
@@ -235,17 +246,18 @@ ggplot(dat, aes(light_cond, Flo)) +
   labs(title = "Simulated data")
 ```
 
-### Linear Regression
+### Simple linear Regression
 Now we can analyse the data we simulated using the function `lm()`. It takes the formula as the first argument. This is the same as the data-generating equation, but you can omit the error term (this is implied), and takes the data table as the second argument. Use the `summary()` function to see the statistical summary.
 
 ```{r}
-light_lm = lm(Flo ~ light_cond.e, data = dat)
+# light lm of flowering time per light condition (using effect coding)
 
-summary(light_lm)
+
+# Summary
+
 ```
 
 Notice how the **estimate** for the `(Intercept)` is close to the value we set for `mu` and the estimate for `light_cond.e` is close to the value we set for `effect`.
-
 
 *Exercise*: Change the values of `mu` and `effect`, resimulate the data, and re-run the linear model. What happens to the estimates?
 
@@ -253,21 +265,22 @@ Notice how the **estimate** for the `(Intercept)` is close to the value we set f
 
 You can use the `residuals()` function to extract the error term for each each data point. This is the Y values minus the estimates for the intercept and trial type. We’ll make a density plot of the residuals below and compare it to the normal distribution we used for the error term.
 
-```{r res-density-plot, fig.cap="Model residuals should be approximately normally distributed for each group"}
+```{r}
 res = residuals(light_lm)
 
 ggplot(dat) + 
   stat_function(aes(0), color = "grey40",
                 fun = dnorm, n = 101, 
                 args = list(mean = 0, sd = error_sd)) +
-  geom_density(aes(res, color = light_cond))
+  geom_density(aes(res, color = light_cond)) +
+  labs(title = "Distribution of model residuals")
   
 ```
 
 The residuals of both conditions more or less follow a normal distribution. This will become important later, because this is one of the assumptions of the linear model.
 
-
 You can also compare the model residuals to the simulated error values. If the model is accurate, they should be almost identical. If the intercept estimate is slightly off, the points will be slightly above or below the black line. If the estimate for the effect of trial type is slightly off, there will be a small, systematic difference between residuals for high and low light conditions.
+
 
 ```{r res-err-plot, fig.cap="Model residuals should be very similar to the simulated error"}
 ggplot(dat, aes(error, res, color = light_cond)) +
@@ -276,8 +289,6 @@ ggplot(dat, aes(error, res, color = light_cond)) +
   ylab("Model Residuals") +
   xlab("Simulated Error")
 ```
-
-*Exercise*: What happens to the residuals if you fit a model that ignores light conditions (e.g., `lm(Y ~ 1, data = dat)`)?
 
 ### Predict New Values
 
@@ -302,7 +313,7 @@ You can also use the `predict()` function to do this more easily.
 predict(light_lm, data.frame(light_cond.e = 0.5))
 ```
 
-### Other Coding Categorical Variables
+### Codings of categorical variables
 
 In the example above, we used **effect coding** for light condition. You can also use **sum coding**, which assigns +1 and -1 to the levels instead of +0.5 and -0.5.  More commonly, you might want to use **treatment coding**, which assigns 0 to one level (usually a baseline or control condition) and 1 to the other level (usually a treatment or experimental condition).
 
@@ -317,17 +328,20 @@ dat
 
 Here are the coefficients for the effect-coded version. They should be the same as those from the last analysis.
 ```{r}
-lm(Flo ~ light_cond.e, data = dat)$coefficients
+# coefficients of lm with effect coding
+
 ```
 
 Here are the coefficients for the sum-coded version. This give the same results as effect coding, except the estimate for the categorical factor will be exactly half as large, as it represents the difference between each condition and the hypothetical condition of 0 (the overall mean Flo), rather than the difference between the two conditions.
 ```{r}
-lm(Flo ~ light_cond.sum, data = dat)$coefficients
+# Coefficients of lm with sum coding
+
 ```
 
 Here are the coefficients for the treatment-coded version. The estimate for the categorical factor will be the same as in the effect-coded version, but the intercept will increase. It will be equal to the intercept plus the estimate for condition from the sum-coded version.
 ```{r}
-lm(Flo ~ light_cond.tr, data = dat)$coefficients
+# coefficients of lm with treatment coding
+
 ```
 
 
@@ -344,22 +358,23 @@ The idea is simple: we want to know how likely it is that the samples were drawn
 One important assumpion of tests based on comparing two or more means is that the variance is equal in all compared samples. This is called **constancy of variance**. Why is this important? Because two samples can have the same mean but different variance. If you compare just the means you may conclude that the samples are identical. However, variance of the data is equally important in most contexts, so this conclusion would probably be wrong.
 
 Let's just quickly compare the variance the two treatment groups.
-```{r, echo=TRUE}
-dat %>% 
-  group_by(light_cond) %>% 
-  summarise(var = var(Flo))
+```{r}
+# Group by condition and summarize the variance
+
 ```
 
 We can test for the equality of the variances as follows:
 ```{r, echo=TRUE}
-var.test(Flo ~ light_cond, data = dat)
+# Test of equal variances per condition
+
 ```
 
 So, even though the estimate of the variance of each group is different, they are not *significantly* different.
 
 One advantaje of using the t-test in R is that by default it uses a variation called the Welch's t-test for unequal variances, which is robust to deviations of the assumption of the constancy of variance. Performing the test in R is very straightforward, we just need to use the `t.test()` command and inside we just need to specify the dependent and independent variables we want to test using a formula:
 ```{r}
-t.test(Flo ~ light_cond, data = dat)
+# t-test of flowering time per condition
+
 ```
 
 *Exercise*: What happens when you use the other codings for light conditions in the t-test above? Which coding maps onto the results of the t-test best?
@@ -371,25 +386,288 @@ ANOVA is also a special, limited version of the linear model. You use ANOVA when
 Just like with the t-test, you can perform the ANOVA using the `aov()` command and a formula. **Note** that there is a related but different command named `anova()`, don't confuse them!
 
 ```{r}
-light_aov = aov(Flo ~ light_cond.e, data = dat)
+# aov of flowering time per condition
 
-summary(light_aov, intercept = TRUE)
+
+# Summary of results
+
 ```
 
 The easiest way to get parameters out of an analysis is to use the function `tidy()` from the `broom` package. This returns a tidy table that you can extract numbers of interest from. 
 
 ```{r}
-light_broom = tidy(light_aov)
-light_broom
+# tidy from broom to get data frame of parameters
+
 ```
 
 **Exercise**: Compare the square root of the F-value of the linear model to the t-value from the t-tests above.
 ```{r}
-f_val = light_broom$statistic[1]
-sqrt(f_val)
+# sqrt of F value
+
 ```
 
-### Understanding ANOVA
+
+### From simple to multiple linear regression
+
+The following section will use most of what we've seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the `PimaIndiansDiabetes2` dataset that is available in the `mlbench` package. It contains body meassurements and clinical chemestry data of 768 subjects
+
+```{r}
+data(PimaIndiansDiabetes2)
+PimaIndiansDiabetes2 %>% str
+```
+
+
+## Exercise 1
+
+Use ggplot2 to make a scatterplot that visualizes the relationship between the body mass index and the diastolic blood pressure. Can you tell whether this association is positive or negative?
+```{r}
+# ggplot
+
+```
+
+
+## Exercise 2
+
+Run a regression model that fits the blood pressure and the body mass, and store the model object in the variable `pressure_mod`.
+
+```{r}
+# pressure lm
+
+```
+
+## Exercise 3
+
+Is the association between body mass and blood pressure significant? What is the proportion of variance in the blood pressure explained by the body mass index?
+
+```{r}
+# summary of model
+
+```
+
+## Exercise 4
+
+Make a histogram of the residuals of the model using ggplot2.
+
+```{r}
+# histogram of residuals
+```
+
+## Excercise 5
+
+Sometimes you want to include other variables in your model that might have an effect on your dependent variable. These variables can be easily included in the model to perform a multiple linear regression, which is a generalization of a simple linear regression. The variables can be either continuous or categorical. When you perform a multiple linear regeression of the form `y ~ z + x` you can say that you are evaluating the association of `x` and `y` adjusting or controlling by `z`.
+
+Fit a linear model to test the the association of blood pressure and body mass as above, but adjusting by the age of the subject. Use Summary to determine whether the association is significant.
+
+```{r}
+# lm adjusting by age
+
+```
+
+**NOTE** that this is very similar to the so called *ANCOVA* (analysis of covariance), which evaluates whether the means of a dependent continuous variable are equal across levels of a categorical independent variable, while controlling for the effects of other continuous variables that are not of primary interest.
+
+
+# Assumptions of the linear model
+
+The following section is based on the linear regression assumptions and diagnostics in R: article [from STHDA](http://www.sthda.com/english/articles/39-regression-model-diagnostics/161-linear-regression-assumptions-and-diagnostics-in-r-essentials/).
+
+Once you perform a linear regression analysis, you should also verify whether it followed the assumptions of the linear model.
+
+The GLM assumes that:
+
+* the relationship between the dependent and independent variables is linear
+* the the residuals follow a normal distribution
+* the variance of the residuals is constant 
+* the residuals are indepentend of each other. 
+
+It is important to inspect the regression model to determine if there may be problems with your model and determine if the assumptions are met. Some of the potential problems you may encounter are:
+
+* Non-linearity of the outcome - predictor relationships
+* Heteroscedasticity: Non-constant variance of error terms.
+* Presence of influential values in the data that can be:
+    * Outliers: extreme values in the outcome (y) variable
+    * High-leverage points: extreme values in the predictors (x) variable
+
+We can use plots to assess these assumptions
+
+## Asssessing assumptions of the linear model
+
+First, we need to fit a linear regression model. For this, we will use the `diamonds` dataset used above. For ease of visualization, we'll randomly sample 100 observations from the data frame
+```{r}
+# subset of data frame
+sub_diamonds = diamonds %>% sample_n(100)
+
+# See top of table
+sub_diamonds %>% head
+
+# Plot of price of the diamonds by caratage
+sub_diamonds %>% ggplot(aes(x = carat, y = price)) + geom_point()
+
+# Fit lm
+diamond_lm = lm(price ~ carat, data = sub_diamonds)
+
+# Summary of linear model
+summary(diamond_lm)
+```
+First, we need to understand two key concepts in regression analysis: Fitted values and residuals errors. They are very important to understand what follows
+
+*The fitted (or predicted) values* are the y-values that you would expect for the given x-values according to the built regression model. In R, you can easily augment your data to add fitted values and residuals by using the function `augment()` from the `broom` package. The output model.diag.metrics contains several metrics useful for regression diagnostics. We’ll describe theme later.
+
+No model is perfect, and there will always be a difference between the observed y-values and the predicted (or fitted) values given a certain x-value by the model. The differences between the observed and fitted y-values are the *residuals* of the model, represented by a vertical red lines. This means that, for a given caratage, the observed (or measured) sale price can be different from the predicted values.
+
+```{r}
+# Obtain diagnostic metrics table
+diamond_diagnostics = augment(diamond_lm)
+head(diamond_diagnostics)
+
+# Scatter plot with regression line and residuals
+ggplot(diamond_diagnostics, aes(x = carat, y = price)) +
+  geom_point() +
+  stat_smooth(method = lm, se = FALSE) +
+  geom_segment(aes(xend = carat, yend = .fitted), color = "red", size = 0.3)
+```
+
+## Diagnostic plots
+Regression diagnostics plots can be created using the R base function plot()
+```{r}
+par(mfrow = c(2, 2))
+plot(diamond_lm)
+```
+
+The four plot are:
+
+* Residuals vs Fitted: used to check the linear relationship.
+* Normal Q-Q: used to examine whether the residuals are normally distributed.
+* Scale-Location (or Spread-Location): used to check the homogeneity of variance of the residuals (homoscedasticity). 
+* Residuals vs Leverage: Used to identify influential cases, that is extreme values that might influence the regression results when included or excluded from the analysis. 
+In these plots the top 3 most extreme data points are labeled with with the row numbers in the data frame. These values might be potentially problematic, and might grant a close inspection.
+
+Let's go over each plot
+
+### Residuals vs Fitted
+```{r}
+plot(diamond_lm, 1)
+```
+
+Ideally, the residual plot will show no fitted pattern. That is, the red line should be approximately horizontal at zero. If the residual plot indicates a non-linear relationship in the data, then a simple approach is to use non-linear transformations of the predictors, such as log(x), sqrt(x) and x^2, in the regression model. 
+
+### Normal Q-Q
+```{r}
+plot(diamond_lm, 2)
+```
+
+The QQ plot of residuals can be used to visually check the normality assumption. The normal probability plot of residuals should approximately follow a straight line.
+
+### Scale-Location
+```{r}
+plot(diamond_lm, 3)
+```
+
+This plot shows if residuals are spread equally along the ranges of predictors. It’s good if you see a horizontal line with equally spread points. In our example, this is not the case.
+
+### Residuals vs Leverage
+```{r}
+plot(diamond_lm, 5)
+```
+
+Outliers and high leverage points can be identified by inspecting the Residuals vs Leverage plot. These are values, which inclusion or exclusion can alter the results of the regression analysis and associated with a large residual. Note that not all outliers are influential in linear regression analysis. On this plot, outlying values are generally located at the upper right corner or at the lower right corner. 
+
+Look for points outside of a dashed line, *Cook’s distance*. When the points are outside of the Cook’s distance threshold it means that they are influential to the regression results. The regression results will be altered if we exclude those cases.
+
+## Automating the process
+
+One of the greatest advantages of R is that is seems there is a package for everything, and obtaining diagnostics for a linear regression fit is not the exception. In this case we can use the `gvlma` function from the package of the same name
+
+```{r}
+# obtain diagnostics
+
+```
+
+You can find a detailed explanation [here](https://ademos.people.uic.edu/Chapter12.html#38_global_test_of_model_assumptions:_gvlma()), but briefly:
+
+* `Global Stat`: Are the relationships between the x predictors and y roughly linear?
+* `Skewness`: are the data skewed positively or negatively, necessitating a transformation to meet the assumption of normality?
+* `Kurtosis`: are the data kurtotic (highly peaked or very shallowly peaked), necessitating a transformation to meet the assumption of normality?
+* `Link Function`: Is the dependent variable truly continuous, or categorical? Rejection of the null (p < .05) indicates that you should use an alternative form of the generalized linear model (e.g. logistic or binomial regression).
+* `Heteroscedasticity`: Is the variance of your model residuals constant across the range of x (assumption of homoscedastiity)?
+
+# More exercises
+
+The following section is for you to give this a shot. We will play with the `msleep` dataset from the library `ggplot2`. It contains information about sleep times and body meassurements of different mammals.
+
+## Exercise 1
+
+Explore the dataset. What kind of variables does it contain?
+```{r}
+# Structure of the dataset
+msleep %>% str
+```
+
+## Exercise 2
+
+Determine whether there are differences in body weight between animals of different diets (diet is in the variable `vore`)
+
+```{r}
+# lm of weight by diet
+
+```
+
+## Exercise 3
+
+Are there differences in the awake times of animals belonging to different orders?
+
+```{r}
+# lm of awake times by tax order
+```
+
+## Exercise 4
+
+It seems there are indeed differences in the time animals from various orders stay awake during the day. Determine which are the orders that are different from each other. You can use the function `TukeyHSD` to perform the post-hoc test and filter the resulting table to obtain those pairwise comparisons that have an adjusted p-value below 0.05
+
+```{r}
+# Tukey test
+
+
+# Create table and filter
+
+
+```
+
+## Exercise 5
+
+Create a plot with the total sleep hours of the different animals by their body weight
+```{r}
+# ggplot
+
+```
+
+Doesn't look very good, right? What if you log-transform the body weight
+
+```{r}
+# Log-transform the body weight
+
+```
+
+## Exercice 6
+
+Fit a linear model of total sleep by log-transformed body weight. What is the association between these variables? Assess the model using plots
+```{r}
+# sleep lm
+
+# diagnostic plots
+
+```
+
+# Exercise 7
+
+Does the association between body weight and sleep time holds when you include the diet type as a covariate?
+
+```{r}
+# vore sleep lm
+
+```
+
+
+# Bonus: understanding ANOVA
 
 We'll walk through an example of a one-way ANOVA with the following equation:
 
@@ -519,178 +797,6 @@ Now run a one-way ANOVA on your results and compare it to what you obtained in y
 ```{r}
 aov(Y ~ grp, data = dat_aov) %>% summary(intercept = TRUE)
 ```
-
-# Linear regression: simple and multiple
-
-The following section will use most of what we've seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the `msleep` dataset. It constains sleep time, weight and taxonomic classification of multiple mamals. (See `?msleep` for information about the dataset.)
-
-## Exercise 1
-
-Use ggplot2 to make a scatterplot that visualizes the relationship between total sleep hours and the number of REM sleep hours of the animal.
-```{r}
-# ggplot
-```
-
-
-## Exercise 2
-
-Run a regression model that fits the number REM sleep hours by total sleep hours of the animal, and store the model object in the variable `sleep_mod`.
-
-```{r}
-# lm
-```
-
-## Exercise 3
-
-Is the association between body weight and sleep hours significant? What is the proportion of variance in the sleep hours explained by the animal body weight?
-
-```{r}
-# summary here
-```
-
-# Exercise 4
-
-Make a histogram of the residuals of the model using ggplot2.
-
-```{r}
-# hist
-```
-
-## Excercise 5
-
-Sometimes you want to include other variables in your model that might have an effect on your dependent variable. These variables can be easily included in the model to perform a multiple linear regression, which is a generalization of a simple linear regression. The variables can be either continuous or categorical. When you perform a multiple linear regeression of the form `y ~ z + x` you can say that you are evaluating the association of `x` and `y` adjusting or controlling by `z`.
-
-Fit a linear model to test the the association of total and REM hours as above, but adjusting by the (taxonomic) order. Use Summary to determine whether the association is significant.
-
-```{r}
-
-```
-
-**NOTE** that this is very similar to the so called *ANCOVA* (analysis of covariance), which evaluates whether the means of a dependent continuous variable are equal across levels of a categorical independent variable, while controlling for the effects of other continuous variables that are not of primary interest.
-
-
-# Assumptions of the linear model
-
-The following section is based on the linear regression assumptions and diagnostics in R: article [from STHDA](http://www.sthda.com/english/articles/39-regression-model-diagnostics/161-linear-regression-assumptions-and-diagnostics-in-r-essentials/).
-
-Once you perform a linear regression analysis, you should also verify whether it followed the assumptions of the linear model.
-
-The GLM assumes that:
-
-* the relationship between the dependent and independent variables is linear
-* the the residuals follow a normal distribution
-* the variance of the residuals is constant 
-* the residuals are indepentend of each other. 
-
-It is important to inspect the regression model to determine if there may be problems with your model and determine if the assumptions are met. Some of the potential problems you may encounter are:
-
-* Non-linearity of the outcome - predictor relationships
-* Heteroscedasticity: Non-constant variance of error terms.
-* Presence of influential values in the data that can be:
-    * Outliers: extreme values in the outcome (y) variable
-    * High-leverage points: extreme values in the predictors (x) variable
-
-We can use plots to assess these assumptions
-
-## Asssessing assumptions of the linear model
-
-First, we need to fit a linear regression model. For this, we will use the `diamonds` dataset used above. For ease of visualization, we'll randomly sample 100 observations from the data frame
-```{r}
-# subset of data frame
-sub_diamonds = diamonds %>% sample_n(100)
-
-# See top of table
-sub_diamonds %>% head
-
-# Plot of price of the diamonds by caratage
-sub_diamonds %>% ggplot(aes(x = carat, y = price)) + geom_point()
-
-# Fit lm
-diamond_lm = lm(price ~ carat, data = sub_diamonds)
-
-# Summary of linear model
-summary(diamond_lm)
-```
-First, we need to understand two key concepts in regression analysis: Fitted values and residuals errors. They are very important to understand what follows
-
-*The fitted (or predicted) values* are the y-values that you would expect for the given x-values according to the built regression model. In R, you can easily augment your data to add fitted values and residuals by using the function `augment()` from the `broom` package. The output model.diag.metrics contains several metrics useful for regression diagnostics. We’ll describe theme later.
-
-No model is perfect, and there will always be a difference between the observed y-values and the predicted (or fitted) values given a certain x-value by the model. The differences between the observed and fitted y-values are the *residuals* of the model, represented by a vertical red lines. This means that, for a given caratage, the observed (or measured) sale price can be different from the predicted values.
-
-```{r}
-# Obtain diagnostic metrics table
-diamond_diagnostics = augment(diamond_lm)
-head(diamond_diagnostics)
-
-# Scatter plot with regression line and residuals
-ggplot(diamond_diagnostics, aes(x = carat, y = price)) +
-  geom_point() +
-  stat_smooth(method = lm, se = FALSE) +
-  geom_segment(aes(xend = carat, yend = .fitted), color = "red", size = 0.3)
-```
-
-## Diagnostic plots
-Regression diagnostics plots can be created using the R base function plot()
-```{r}
-par(mfrow = c(2, 2))
-plot(diamond_lm)
-```
-
-The four plot are:
-
-* Residuals vs Fitted: used to check the linear relationship.
-* Normal Q-Q: used to examine whether the residuals are normally distributed.
-* Scale-Location (or Spread-Location): used to check the homogeneity of variance of the residuals (homoscedasticity). 
-* Residuals vs Leverage: Used to identify influential cases, that is extreme values that might influence the regression results when included or excluded from the analysis. 
-In these plots the top 3 most extreme data points are labeled with with the row numbers in the data frame. These values might be potentially problematic, and might grant a close inspection.
-
-Let's go over each plot
-
-### Residuals vs Fitted
-```{r}
-plot(diamond_lm, 1)
-```
-
-Ideally, the residual plot will show no fitted pattern. That is, the red line should be approximately horizontal at zero. If the residual plot indicates a non-linear relationship in the data, then a simple approach is to use non-linear transformations of the predictors, such as log(x), sqrt(x) and x^2, in the regression model. 
-
-### Normal Q-Q
-```{r}
-plot(diamond_lm, 2)
-```
-
-The QQ plot of residuals can be used to visually check the normality assumption. The normal probability plot of residuals should approximately follow a straight line.
-
-### Scale-Location
-```{r}
-plot(diamond_lm, 3)
-```
-
-This plot shows if residuals are spread equally along the ranges of predictors. It’s good if you see a horizontal line with equally spread points. In our example, this is not the case.
-
-### Residuals vs Leverage
-```{r}
-plot(diamond_lm, 5)
-```
-
-Outliers and high leverage points can be identified by inspecting the Residuals vs Leverage plot. These are values, which inclusion or exclusion can alter the results of the regression analysis and associated with a large residual. Note that not all outliers are influential in linear regression analysis. On this plot, outlying values are generally located at the upper right corner or at the lower right corner. 
-
-Look for points outside of a dashed line, *Cook’s distance*. When the points are outside of the Cook’s distance threshold it means that they are influential to the regression results. The regression results will be altered if we exclude those cases.
-
-## Automating the process
-
-One of the greatest advantages of R is that is seems there is a package for everything, and obtaining diagnostics for a linear regression fit is not the exception. In this case we can use the `gvlma` function from the package of the same name
-
-```{r}
-gvlma(diamond_lm)
-```
-
-You can find a detailed explanation [here](https://ademos.people.uic.edu/Chapter12.html#38_global_test_of_model_assumptions:_gvlma()), but briefly:
-
-* `Global Stat`: Are the relationships between the x predictors and y roughly linear?
-* `Skewness`: are the data skewed positively or negatively, necessitating a transformation to meet the assumption of normality?
-* `Kurtosis`: are the data kurtotic (highly peaked or very shallowly peaked), necessitating a transformation to meet the assumption of normality?
-* `Link Function`: Is the dependent variable truly continuous, or categorical? Rejection of the null (p < .05) indicates that you should use an alternative form of the generalized linear model (e.g. logistic or binomial regression).
-* `Heteroscedasticity`: Is the variance of your model residuals constant across the range of x (assumption of homoscedastiity)?
 
 
 # Session info

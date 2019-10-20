@@ -21,6 +21,7 @@ library(tidyverse)
 library(broom)
 library(mlbench)
 library(gvlma)
+library(gapminder)
 ```
 
 ## Set seed 
@@ -108,23 +109,31 @@ diamonds %>% head()
 
 To calculate the correlation between carat weigth and price, all we use the `cor` command:
 ```{r, echo=TRUE}
-# Calculate correlation
+# Calculate pearson correlation
 cor(diamonds$carat, diamonds$price, method = "pearson")
 ```
 
-So what does the value of correlation coefficient (p) mean? Correlation considers the variance in variable *x*, the variance in variable *y* and their covariance (how the two vary together). Values of p always range between -1 and 1. Values near -1 indicate strong negative correlation, while values near 1 indicate strong positive correlation. When *x* and *y* are uncorrelated, their covariance (and thus p) is 0. Think of the lack of correlation as a plot of the two variables without any kind of structure, just a random cloud of points. Correlation, on the other hand, means that there is a structure to that cloud of points - maybe it's stretched on the diagonal and the could is pointing to upper right, in which case the correlation would be positive.
+So, what does the value of correlation coefficient (p) mean? Correlation considers the variance in variable *x*, the variance in variable *y* and their covariance (how the two vary together). Values of p always range between -1 and 1. Values near -1 indicate strong negative correlation, while values near 1 indicate strong positive correlation. When *x* and *y* are uncorrelated, their covariance (and thus p) is 0. Think of the lack of correlation as a plot of the two variables without any kind of structure, just a random cloud of points. Correlation, on the other hand, means that there is a structure to that cloud of points - maybe it's stretched on the diagonal and the could is pointing to upper right, in which case the correlation would be positive.
 
 The associated p-value of a correlation can be calculated as follows:
 
 ```{r, echo=TRUE}
+# correlation test using Pearson method
 cor.test(diamonds$carat, diamonds$price, method = "pearson")
 ```
 
 Note that the Pearson's correlation test assumes that *x* and *y* are normally distributed. There's also the non-parametric Spearman's rank correlation (in case of non-normality).
 
 ```{r, echo=TRUE}
+# correlation test using Spearman method
 cor.test(diamonds$carat, diamonds$price, method='spearman')
 ```
+
+Frecuently you will get the message:
+
+> Cannot compute exact p-value with ties
+
+This is because Spearman's method uses ranked values to calculate the correlation, and when you have repeated values (i.e. ties), it can only calculate an approximate p-value. This should't be a problem.
 
 If you want to test your ability to visually assess the correlation between two variables, try [this game](http://guessthecorrelation.com/), just don't get too distracted ;)
 
@@ -217,6 +226,7 @@ conditions = c("Low" = -0.5, "High" = 0.5)
 Then simulate the data by creating a data table with a row for each trial and columns for the trial type and the error term (random numbers samples from a normal distribution with the SD specified by `error_sd`). For categorical variables, include both a column with the text labels (`light_cond`) and another column with the coded version (`light_cond.e`) to make it easier to check what the codings mean and to use for graphing. Calculate the dependent variable (`Flo`) as the sum of the grand mean (`mu`), the coefficient (`effect`) multiplied by the effect-coded predictor variable (`light_cond.e`), and the error term.
 
 ```{r}
+# Create a single data frame with all the simulated data that we will use below
 dat = data.frame(light_cond = rep(names(conditions), each = n_per_grp),
   light_cond.e = rep(conditions, each = n_per_grp),
   error = rnorm(2*n_per_grp, 0, error_sd)) %>%
@@ -227,7 +237,8 @@ dat
 
 Last but not least, always plot simulated data to make sure it looks like you expect.
 
-```{r plot-sim}
+```{r}
+# Violin plot to see the distribution of simulated data per group
 ggplot(dat, aes(light_cond, Flo)) + 
   geom_violin() +
   geom_boxplot(aes(fill = light_cond), width = 0.25, show.legend = FALSE) +
@@ -235,17 +246,18 @@ ggplot(dat, aes(light_cond, Flo)) +
   labs(title = "Simulated data")
 ```
 
-### Linear Regression
+### Simple linear Regression
 Now we can analyse the data we simulated using the function `lm()`. It takes the formula as the first argument. This is the same as the data-generating equation, but you can omit the error term (this is implied), and takes the data table as the second argument. Use the `summary()` function to see the statistical summary.
 
 ```{r}
+# light lm of flowering time per light condition
 light_lm = lm(Flo ~ light_cond.e, data = dat)
 
+# Summary
 summary(light_lm)
 ```
 
 Notice how the **estimate** for the `(Intercept)` is close to the value we set for `mu` and the estimate for `light_cond.e` is close to the value we set for `effect`.
-
 
 *Exercise*: Change the values of `mu` and `effect`, resimulate the data, and re-run the linear model. What happens to the estimates?
 
@@ -253,21 +265,22 @@ Notice how the **estimate** for the `(Intercept)` is close to the value we set f
 
 You can use the `residuals()` function to extract the error term for each each data point. This is the Y values minus the estimates for the intercept and trial type. We’ll make a density plot of the residuals below and compare it to the normal distribution we used for the error term.
 
-```{r res-density-plot, fig.cap="Model residuals should be approximately normally distributed for each group"}
+```{r}
 res = residuals(light_lm)
 
 ggplot(dat) + 
   stat_function(aes(0), color = "grey40",
                 fun = dnorm, n = 101, 
                 args = list(mean = 0, sd = error_sd)) +
-  geom_density(aes(res, color = light_cond))
+  geom_density(aes(res, color = light_cond)) +
+  labs(title = "Distribution of model residuals")
   
 ```
 
 The residuals of both conditions more or less follow a normal distribution. This will become important later, because this is one of the assumptions of the linear model.
 
-
 You can also compare the model residuals to the simulated error values. If the model is accurate, they should be almost identical. If the intercept estimate is slightly off, the points will be slightly above or below the black line. If the estimate for the effect of trial type is slightly off, there will be a small, systematic difference between residuals for high and low light conditions.
+
 
 ```{r res-err-plot, fig.cap="Model residuals should be very similar to the simulated error"}
 ggplot(dat, aes(error, res, color = light_cond)) +
@@ -276,8 +289,6 @@ ggplot(dat, aes(error, res, color = light_cond)) +
   ylab("Model Residuals") +
   xlab("Simulated Error")
 ```
-
-*Exercise*: What happens to the residuals if you fit a model that ignores light conditions (e.g., `lm(Y ~ 1, data = dat)`)?
 
 ### Predict New Values
 
@@ -302,7 +313,7 @@ You can also use the `predict()` function to do this more easily.
 predict(light_lm, data.frame(light_cond.e = 0.5))
 ```
 
-### Other Coding Categorical Variables
+### Codings of categorical variables
 
 In the example above, we used **effect coding** for light condition. You can also use **sum coding**, which assigns +1 and -1 to the levels instead of +0.5 and -0.5.  More commonly, you might want to use **treatment coding**, which assigns 0 to one level (usually a baseline or control condition) and 1 to the other level (usually a treatment or experimental condition).
 
@@ -344,7 +355,9 @@ The idea is simple: we want to know how likely it is that the samples were drawn
 One important assumpion of tests based on comparing two or more means is that the variance is equal in all compared samples. This is called **constancy of variance**. Why is this important? Because two samples can have the same mean but different variance. If you compare just the means you may conclude that the samples are identical. However, variance of the data is equally important in most contexts, so this conclusion would probably be wrong.
 
 Let's just quickly compare the variance the two treatment groups.
-```{r, echo=TRUE}
+```{r}
+# Group by condition and summarize the variance
+
 dat %>% 
   group_by(light_cond) %>% 
   summarise(var = var(Flo))
@@ -352,6 +365,7 @@ dat %>%
 
 We can test for the equality of the variances as follows:
 ```{r, echo=TRUE}
+# Test of equal variances per condition
 var.test(Flo ~ light_cond, data = dat)
 ```
 
@@ -359,6 +373,7 @@ So, even though the estimate of the variance of each group is different, they ar
 
 One advantaje of using the t-test in R is that by default it uses a variation called the Welch's t-test for unequal variances, which is robust to deviations of the assumption of the constancy of variance. Performing the test in R is very straightforward, we just need to use the `t.test()` command and inside we just need to specify the dependent and independent variables we want to test using a formula:
 ```{r}
+# t-test of flowering time per condition
 t.test(Flo ~ light_cond, data = dat)
 ```
 
@@ -371,156 +386,30 @@ ANOVA is also a special, limited version of the linear model. You use ANOVA when
 Just like with the t-test, you can perform the ANOVA using the `aov()` command and a formula. **Note** that there is a related but different command named `anova()`, don't confuse them!
 
 ```{r}
+# aov of flowering time per condition
 light_aov = aov(Flo ~ light_cond.e, data = dat)
 
+# Summary of results
 summary(light_aov, intercept = TRUE)
 ```
 
 The easiest way to get parameters out of an analysis is to use the function `tidy()` from the `broom` package. This returns a tidy table that you can extract numbers of interest from. 
 
 ```{r}
+# tidy from broom to get data frame of parameters
 light_broom = tidy(light_aov)
 light_broom
 ```
 
 **Exercise**: Compare the square root of the F-value of the linear model to the t-value from the t-tests above.
 ```{r}
+# sqrt of F value
 f_val = light_broom$statistic[1]
 sqrt(f_val)
 ```
 
-### Understanding ANOVA
 
-We'll walk through an example of a one-way ANOVA with the following equation:
-
-$Y_{ij} = \mu + A_i + S(A)_{ij}$
-
-This means that each data point ($Y_{ij}$) is predicted to be the sum of the grand mean ($\mu$), plus the effect of factor A ($A_i$), plus some residual error ($S(A)_{ij}$).
-
-### Means, Variability, and Deviation Scores
-
-Let's create a simple simulation function so you can quickly create a two-sample dataset with specified Ns, means, and SDs.
-
-```{r}
-two_sample = function(n = 10, m1 = 0, m2 = 0, sd1 = 1, sd2 = 1) {
-  s1 = rnorm(n, m1, sd1)
-  s2 = rnorm(n, m2, sd2)
-  
-  data.frame(
-    Y = c(s1, s2),
-    grp = rep(c("A", "B"), each = n)
-  )
-}
-```
-
-Now we will use `two_sample()` to create a dataset `dat` with N=5 per group, means of -2 and +2, and SDs of 1 and 1 (this is an effect size of d = 4).
-
-```{r}
-dat_aov = two_sample(5, -2, +2, 1, 1)
-dat_aov %>% head
-```
-
-You can calculate how each data point (`Y`) deviates from the overall sample mean ($\hat{\mu}$), which is represented by the horizontal grey line below and the deviations are the vertical grey lines. You can also calculate how different each point is from its group-specific mean ($\hat{A_i}$), which are represented by the horizontal coloured lines below and the deviations are the coloured vertical lines.
-
-```{r deviation, echo = FALSE, fig.cap="Deviations of each data point (Y) from the overall and group means"}
-group_by(dat_aov, grp) %>% 
-  mutate(Ymean = mean(Y)) %>%
-  ungroup() %>%
-  mutate(i = row_number()) %>%
-  ggplot(aes(i, Y, color = grp)) +
-    geom_hline(yintercept = mean(dat_aov$Y), color = "grey40") +
-    geom_linerange(aes(x = i-0.025, ymin = Y, ymax = mean(dat_aov$Y)), color = "grey40") +
-    geom_hline(aes(yintercept = Ymean, color = grp)) +
-    geom_linerange(aes(x = i+0.025, ymin = Y, ymax = Ymean, group = i, color = grp)) +
-    geom_point(size = 3) +
-    theme(axis.text.x = element_blank(),
-          axis.ticks.x = element_blank()) +
-  xlab("")
-
-```
-
-You can use these deviations to calculate variability between groups and within groups. ANOVA tests whether the variability between groups is larger than that within groups, accounting for the number of groups and observations.
-
-#### Decomposition matrices
-
-We can use the estimation equations for a one-factor ANOVA to calculate the model components.
-
-* `mu` is the overall mean 
-* `a` is how different each group mean is from the overall mean
-* `err` is residual error, calculated by subtracting `mu` and `a` from `Y`
-
-This produces a *decomposition matrix*, a table with columns for `Y`, `mu`, `a`, and `err`.
-
-```{r}
-decomp = dat_aov %>% 
-  select(Y, grp) %>%
-  mutate(mu = mean(Y)) %>%     # calculate mu_hat
-  group_by(grp) %>%
-  mutate(a = mean(Y) - mu) %>% # calculate a_hat for each grp
-  ungroup() %>%
-  mutate(err = Y - mu - a)     # calculate residual error
-```
-
-`r knitr::kable(decomp)`
-
-Calculate sums of squares for `mu`, `a`, and `err`.
-
-```{r}
-SS = decomp %>%
-  summarise(mu = sum(mu^2),
-            a = sum(a^2),
-            err = sum(err^2))
-```
-
-`r knitr::kable(SS)`
-
-If you've done everything right, `SS$mu + SS$a + SS$err` should equal the sum of squares for Y.
-
-```{r}
-SS_Y = sum(decomp$Y^2)
-SS_Y == SS$mu + SS$a + SS$err
-```
-
-Divide each sum of squares by its corresponding degrees of freedom (df) to calculate mean squares. The df for `mu` is 1, the df for factor `a` is `K-1` (K is the number of groups), and the df for `err` is `N - K` (N is the number of observations).
-
-```{r}
-K = n_distinct(dat_aov$grp)
-N = nrow(dat_aov)
-df = c(mu = 1, a = K - 1, err = N - K)
-MS = SS / df
-```
-
-`r knitr::kable(MS)`
-
-Then calculate an F-ratio for `mu` and `a` by dividing their mean squares by the error term mean square. Get the p-values that correspond to these F-values using the `pf()` function.
-
-```{r}
-F_mu = MS$mu / MS$err
-F_a  = MS$a  / MS$err
-p_mu = pf(F_mu, df1 = df['mu'], df2 = df['err'], lower.tail = FALSE)
-p_a  = pf(F_a,  df1 = df['a'],  df2 = df['err'], lower.tail = FALSE)
-```
-
-Put everything into a data frame to display it in the same way as the ANOVA summary function.
-
-```{r}
-my_calcs = data.frame(term = c("Intercept", "grp", "Residuals"),
-  Df = df,
-  SS = c(SS$mu, SS$a, SS$err),
-  MS = c(MS$mu, MS$a, MS$err),
-  F = c(F_mu, F_a, NA),
-  p = c(p_mu, p_a, NA))
-```
-
-`r knitr::kable(my_calcs , digits = 3)`
-
-Now run a one-way ANOVA on your results and compare it to what you obtained in your calculations.
-
-```{r}
-aov(Y ~ grp, data = dat_aov) %>% summary(intercept = TRUE)
-```
-
-# Linear regression: simple and multiple
+### From simple to multiple linear regression
 
 The following section will use most of what we've seen so far, so we can do it as a series of exercises, to which I will add a couple new concepts. We will use the `PimaIndiansDiabetes2` dataset that is available in the `mlbench` package. It contains body meassurements and clinical chemestry data of 768 subjects
 
@@ -558,7 +447,7 @@ Is the association between body mass and blood pressure significant? What is the
 summary(pressure_mod)
 ```
 
-# Exercise 4
+## Exercise 4
 
 Make a histogram of the residuals of the model using ggplot2.
 
@@ -706,6 +595,219 @@ You can find a detailed explanation [here](https://ademos.people.uic.edu/Chapter
 * `Kurtosis`: are the data kurtotic (highly peaked or very shallowly peaked), necessitating a transformation to meet the assumption of normality?
 * `Link Function`: Is the dependent variable truly continuous, or categorical? Rejection of the null (p < .05) indicates that you should use an alternative form of the generalized linear model (e.g. logistic or binomial regression).
 * `Heteroscedasticity`: Is the variance of your model residuals constant across the range of x (assumption of homoscedastiity)?
+
+# More exercises
+
+The following section is for you to give this a shot. We will play with the `msleep` dataset from the library `ggplot2`. It contains information about sleep times and body meassurements of different mammals.
+
+## Exercise 1
+
+Explore the dataset. What kind of variables does it contain?
+```{r}
+msleep %>% str
+```
+
+## Exercise 2
+
+Determine whether there are differences in body weight between animals of different diets (diet is in the variable `vore`)
+
+```{r}
+weight_vore_aov = aov(bodywt ~ vore, data = msleep)
+summary(weight_vore_aov)
+```
+
+## Exercise 3
+
+Are there differences in the awake times of animals belongind to different orders?
+
+```{r}
+awake_order_aov = aov(awake ~ order, data = msleep)
+summary(awake_order_aov)
+```
+
+## Exercise 4
+
+It seems there are indeed differences in the time animals from various orders stay awake during the day. Determine which are the orders that are different from each other. You can use the function `TukeyHSD` to perform the post-hoc test and filter the resulting table to obtain those pairwise comparisons that have an adjusted p-value below 0.05
+
+```{r}
+# Tukey test
+Tukey_table = TukeyHSD(awake_order_aov)
+
+# Create table and filter
+Tukey_table = as.data.frame(Tukey_table$order) 
+Tukey_table[Tukey_table$`p adj` < 0.05,]
+
+```
+
+## Exercise 5
+
+Create a plot with the total sleep hours of the different animals by their body weight
+```{r}
+msleep %>% 
+  ggplot(aes(bodywt, sleep_total)) + 
+  geom_point()
+```
+
+Doesn't look very good, right? What if you log-transform the body weight
+
+```{r}
+# Log-transform the body weight
+msleep %>% 
+  ggplot(aes(log(bodywt), sleep_total)) + 
+  geom_point()
+```
+
+## Exercice 6
+
+Fit a linear model of total sleep by log-transformed body weight. What is the association between these variables? Assess the model using plots
+```{r}
+# sleep lm
+sleep_lm = lm(sleep_total ~ log(bodywt), data = msleep)
+summary(sleep_lm)
+plot(sleep_lm)
+```
+
+# Exercise 7
+
+Does the association between body weight and sleep time holds when you include the diet type as a covariate?
+
+```{r}
+# vore sleep lm
+vore_sleep_lm = lm(sleep_total ~ vore + log(bodywt), data = msleep)
+summary(order_sleep_lm)
+```
+
+
+# Bonus: understanding ANOVA
+
+We'll walk through an example of a one-way ANOVA with the following equation:
+
+$Y_{ij} = \mu + A_i + S(A)_{ij}$
+
+This means that each data point ($Y_{ij}$) is predicted to be the sum of the grand mean ($\mu$), plus the effect of factor A ($A_i$), plus some residual error ($S(A)_{ij}$).
+
+### Means, Variability, and Deviation Scores
+
+Let's create a simple simulation function so you can quickly create a two-sample dataset with specified Ns, means, and SDs.
+
+```{r}
+two_sample = function(n = 10, m1 = 0, m2 = 0, sd1 = 1, sd2 = 1) {
+  s1 = rnorm(n, m1, sd1)
+  s2 = rnorm(n, m2, sd2)
+  
+  data.frame(
+    Y = c(s1, s2),
+    grp = rep(c("A", "B"), each = n)
+  )
+}
+```
+
+Now we will use `two_sample()` to create a dataset `dat` with N=5 per group, means of -2 and +2, and SDs of 1 and 1 (this is an effect size of d = 4).
+
+```{r}
+dat_aov = two_sample(5, -2, +2, 1, 1)
+dat_aov %>% head
+```
+
+You can calculate how each data point (`Y`) deviates from the overall sample mean ($\hat{\mu}$), which is represented by the horizontal grey line below and the deviations are the vertical grey lines. You can also calculate how different each point is from its group-specific mean ($\hat{A_i}$), which are represented by the horizontal coloured lines below and the deviations are the coloured vertical lines.
+
+```{r deviation, echo = FALSE, fig.cap="Deviations of each data point (Y) from the overall and group means"}
+group_by(dat_aov, grp) %>% 
+  mutate(Ymean = mean(Y)) %>%
+  ungroup() %>%
+  mutate(i = row_number()) %>%
+  ggplot(aes(i, Y, color = grp)) +
+    geom_hline(yintercept = mean(dat_aov$Y), color = "grey40") +
+    geom_linerange(aes(x = i-0.025, ymin = Y, ymax = mean(dat_aov$Y)), color = "grey40") +
+    geom_hline(aes(yintercept = Ymean, color = grp)) +
+    geom_linerange(aes(x = i+0.025, ymin = Y, ymax = Ymean, group = i, color = grp)) +
+    geom_point(size = 3) +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+  xlab("")
+
+```
+
+You can use these deviations to calculate variability between groups and within groups. ANOVA tests whether the variability between groups is larger than that within groups, accounting for the number of groups and observations.
+
+#### Decomposition matrices
+
+We can use the estimation equations for a one-factor ANOVA to calculate the model components.
+
+* `mu` is the overall mean 
+* `a` is how different each group mean is from the overall mean
+* `err` is residual error, calculated by subtracting `mu` and `a` from `Y`
+
+This produces a *decomposition matrix*, a table with columns for `Y`, `mu`, `a`, and `err`.
+
+```{r}
+decomp = dat_aov %>% 
+  select(Y, grp) %>%
+  mutate(mu = mean(Y)) %>%     # calculate mu_hat
+  group_by(grp) %>%
+  mutate(a = mean(Y) - mu) %>% # calculate a_hat for each grp
+  ungroup() %>%
+  mutate(err = Y - mu - a)     # calculate residual error
+```
+
+`r knitr::kable(decomp)`
+
+Calculate sums of squares for `mu`, `a`, and `err`.
+
+```{r}
+SS = decomp %>%
+  summarise(mu = sum(mu^2),
+            a = sum(a^2),
+            err = sum(err^2))
+```
+
+`r knitr::kable(SS)`
+
+If you've done everything right, `SS$mu + SS$a + SS$err` should equal the sum of squares for Y.
+
+```{r}
+SS_Y = sum(decomp$Y^2)
+SS_Y == SS$mu + SS$a + SS$err
+```
+
+Divide each sum of squares by its corresponding degrees of freedom (df) to calculate mean squares. The df for `mu` is 1, the df for factor `a` is `K-1` (K is the number of groups), and the df for `err` is `N - K` (N is the number of observations).
+
+```{r}
+K = n_distinct(dat_aov$grp)
+N = nrow(dat_aov)
+df = c(mu = 1, a = K - 1, err = N - K)
+MS = SS / df
+```
+
+`r knitr::kable(MS)`
+
+Then calculate an F-ratio for `mu` and `a` by dividing their mean squares by the error term mean square. Get the p-values that correspond to these F-values using the `pf()` function.
+
+```{r}
+F_mu = MS$mu / MS$err
+F_a  = MS$a  / MS$err
+p_mu = pf(F_mu, df1 = df['mu'], df2 = df['err'], lower.tail = FALSE)
+p_a  = pf(F_a,  df1 = df['a'],  df2 = df['err'], lower.tail = FALSE)
+```
+
+Put everything into a data frame to display it in the same way as the ANOVA summary function.
+
+```{r}
+my_calcs = data.frame(term = c("Intercept", "grp", "Residuals"),
+  Df = df,
+  SS = c(SS$mu, SS$a, SS$err),
+  MS = c(MS$mu, MS$a, MS$err),
+  F = c(F_mu, F_a, NA),
+  p = c(p_mu, p_a, NA))
+```
+
+`r knitr::kable(my_calcs , digits = 3)`
+
+Now run a one-way ANOVA on your results and compare it to what you obtained in your calculations.
+
+```{r}
+aov(Y ~ grp, data = dat_aov) %>% summary(intercept = TRUE)
+```
 
 
 # Session info
