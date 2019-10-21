@@ -674,7 +674,7 @@ Does the association between body weight and sleep time holds when you include t
 ```{r}
 # vore sleep lm
 vore_sleep_lm = lm(sleep_total ~ vore + log(bodywt), data = msleep)
-summary(order_sleep_lm)
+summary(vore_sleep_lm)
 ```
 
 
